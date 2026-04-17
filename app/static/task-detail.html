@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Detail - Agent Cron Server</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar sidebar-container"></div>
+  <main class="main">
+    <a href="tasks.html" class="back-link">&larr; Back to Tasks</a>
+    <div class="page-header">
+      <h1 id="task-title">Loading...</h1>
+      <div class="btn-group" id="task-actions"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header">Task Information</div>
+      <div class="card-body">
+        <div class="info-grid" id="task-info"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Executions
+        <button class="btn btn-sm" onclick="loadExecutions(1)">Refresh</button>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Status</th>
+                <th>Trigger</th>
+                <th>Duration</th>
+                <th>Exit Code</th>
+                <th>Started</th>
+              </tr>
+            </thead>
+            <tbody id="exec-table">
+              <tr><td colspan="6" class="loading">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="pagination"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/common.js"></script>
+<script src="js/task-detail.js"></script>
+</body>
+</html>

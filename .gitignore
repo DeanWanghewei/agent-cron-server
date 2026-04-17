@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
+# Data
+data/
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# AIS (AI Account Switch) - Local configuration files
+.ais-project-config
+.claude/settings.local.json
+.codex-profile
+.droids/config.json
