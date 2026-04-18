@@ -42,6 +42,7 @@ async function loadTaskDetail() {
   grid.appendChild(infoItem('Timeout', task.timeout + 's'));
   grid.appendChild(infoItem('Max Retries', task.max_retries));
   grid.appendChild(infoItem('Owner Agent', task.owner_agent));
+  grid.appendChild(infoItem('Callback URL', task.callback_url));
   grid.appendChild(infoItem('Tags', task.tags ? task.tags.join(', ') : '-'));
   grid.appendChild(infoItem('Enabled', task.enabled ? 'Yes' : 'No'));
   grid.appendChild(infoItem('Created', formatTime(task.created_at)));

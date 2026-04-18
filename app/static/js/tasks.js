@@ -15,7 +15,7 @@ async function loadTasks(page) {
     if (!data.items || data.items.length === 0) {
       var row = tbody.insertRow();
       var cell = row.insertCell();
-      cell.colSpan = 7;
+      cell.colSpan = 8;
       cell.textContent = 'No tasks found';
       cell.className = 'empty-state';
       return;
@@ -44,6 +44,18 @@ async function loadTasks(page) {
       tdCmd.className = 'command-cell';
 
       tr.insertCell().textContent = task.owner_agent || '-';
+
+      var tdCallback = tr.insertCell();
+      if (task.callback_url) {
+        var cbLink = document.createElement('a');
+        cbLink.href = task.callback_url;
+        cbLink.textContent = task.callback_url.length > 30 ? task.callback_url.substring(0, 30) + '...' : task.callback_url;
+        cbLink.title = task.callback_url;
+        cbLink.target = '_blank';
+        tdCallback.appendChild(cbLink);
+      } else {
+        tdCallback.textContent = '-';
+      }
 
       var tdActions = tr.insertCell();
       var group = document.createElement('div');
@@ -86,7 +98,7 @@ async function loadTasks(page) {
     document.getElementById('tasks-table').innerHTML = '';
     var row = document.getElementById('tasks-table').insertRow();
     var cell = row.insertCell();
-    cell.colSpan = 7;
+    cell.colSpan = 8;
     cell.textContent = 'Failed to load tasks';
     cell.className = 'empty-state';
   }
