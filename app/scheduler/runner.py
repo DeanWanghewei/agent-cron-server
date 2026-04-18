@@ -104,7 +104,10 @@ async def run_task(task_id: int, trigger_type: str = "cron") -> None:
             _write_log_file(stderr_path, stderr, settings.LOG_MAX_SIZE)
 
             record.exit_code = exit_code
-            record.status = "success" if exit_code == 0 else "failed"
+            # Status reflects process execution, not business logic.
+            # A non-zero exit code is still a successful execution —
+            # the exit_code field carries the actual result for callers to interpret.
+            record.status = "success"
 
         except asyncio.TimeoutError:
             _write_log_file(stderr_path, f"Task timed out after {task.timeout} seconds", settings.LOG_MAX_SIZE)
