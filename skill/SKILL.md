@@ -16,15 +16,6 @@ metadata:
     requires:
       bins:
         - python3
-required_environment_variables:
-  - name: ACS_PORT
-    prompt: "Port for the cron server (default: 8900)"
-    help: "The HTTP port the agent-cron-server will listen on"
-    required_for: "Server startup"
-  - name: ACS_DATABASE_URL
-    prompt: "Database URL (default: sqlite+aiosqlite:///./data/cron.db)"
-    help: "SQLite or PostgreSQL connection string"
-    required_for: "Persistent task storage"
 ---
 
 # Agent Cron Server
@@ -42,12 +33,18 @@ required_environment_variables:
 
 agent-cron-server 必须运行中。使用前先通过 `get_service_health` 检查服务状态。
 
-如果服务未运行，用 terminal 启动：
+如果服务未运行，优先通过 systemd 启动：
+
+```bash
+systemctl start agent-cron-server
+sleep 2
+```
+
+若未注册 systemd，手动启动：
 
 ```bash
 cd /path/to/agent-cron-server
-pip install -e . 2>/dev/null
-bash scripts/start.sh &
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8900 &
 sleep 2
 ```
 
