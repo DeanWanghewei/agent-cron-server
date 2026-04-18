@@ -16,8 +16,13 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     name="agent-cron-server",
-    instructions="Scheduled task execution service for AI agents. "
-    "Create, manage, and monitor cron tasks that run shell commands/scripts.",
+    instructions=(
+        "Scheduled task execution service for AI agents. "
+        "Create, manage, and monitor cron tasks that run shell commands/scripts.\n\n"
+        "IMPORTANT: These tools are the primary way to interact with this service. "
+        "Do NOT use the REST API (curl/HTTP) when MCP tools are available. "
+        "All task CRUD, execution monitoring, and health checks should go through these MCP tools."
+    ),
 )
 
 

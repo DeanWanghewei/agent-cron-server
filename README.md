@@ -200,7 +200,69 @@ sudo systemctl start agent-cron-server
 
 ---
 
-## REST API
+## 与 AI Agent 交互（MCP — 推荐方式）
+
+> **⚠️ 重要：AI Agent 应通过 MCP Tools 与本服务交互，不要使用 REST API。**
+>
+> 本服务已在 Hermes/OpenClaw 的 `config.yaml` 中配置为 MCP Server：
+> ```yaml
+> mcpServers:
+>   agent-cron:
+>     transport: streamable-http
+>     url: http://localhost:8900/mcp/
+> ```
+>
+> Agent 可直接调用以下 MCP tools，**无需 curl、无需 HTTP 请求**：
+
+### MCP Tools 一览
+
+| Tool | 说明 |
+|------|------|
+| `create_cron_task` | 创建定时任务 |
+| `list_cron_tasks` | 列出任务（可按 enabled/owner_agent/tag 筛选） |
+| `get_cron_task` | 获取任务详情 |
+| `update_cron_task` | 更新任务 |
+| `delete_cron_task` | 删除任务及所有执行历史 |
+| `trigger_cron_task` | 手动触发 |
+| `enable_cron_task` | 启用任务 |
+| `disable_cron_task` | 禁用任务 |
+| `list_executions` | 查看执行记录（可按 task_id/status 筛选） |
+| `get_execution` | 获取执行详情 |
+| `get_execution_log` | 获取执行日志（stdout/stderr） |
+| `get_service_health` | 服务健康状态 |
+
+### MCP 调用示例（mcporter CLI）
+
+```bash
+# 健康检查
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ get_service_health
+
+# 列出所有任务
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ list_cron_tasks
+
+# 创建任务
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ create_cron_task \
+  name="daily-backup" \
+  command="/opt/scripts/backup.sh" \
+  cron_expression="0 2 * * *"
+
+# 手动触发
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ trigger_cron_task task_id=1
+
+# 查看执行日志
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ get_execution_log execution_id=1
+```
+
+> Hermes/OpenClaw 的 AI Agent 会自动通过内部 MCP client 调用这些 tools，
+> 无需手动使用 mcporter。以上 CLI 示例仅用于调试和手动测试。
+
+---
+
+## REST API（备选，非 AI Agent 场景）
+
+> **提示**：如果你是 AI Agent，请使用上方的 MCP Tools，不要使用 REST API。
+
+REST API 主要供第三方系统集成、脚本、Web UI 等非 Agent 场景使用。
 
 所有接口前缀 `/api/v1`。
 
@@ -226,7 +288,7 @@ GET    /executions/{id}/log       执行日志（stdout/stderr）
 DELETE /executions/{id}           删除记录
 ```
 
-### 示例
+### REST API 示例
 
 ```bash
 # 创建任务
@@ -246,35 +308,6 @@ curl -X POST localhost:8900/api/v1/tasks/1/trigger
 # 查看执行日志
 curl localhost:8900/api/v1/executions/1/log
 ```
-
----
-
-## MCP Server
-
-agent-cron-server 通过 MCP（Model Context Protocol）暴露给 AI Agent。
-
-### 连接地址
-
-```
-http://localhost:8900/mcp/
-```
-
-### 可用 Tools
-
-| Tool | 说明 |
-|------|------|
-| `create_cron_task` | 创建定时任务 |
-| `list_cron_tasks` | 列出任务 |
-| `get_cron_task` | 获取任务详情 |
-| `update_cron_task` | 更新任务 |
-| `delete_cron_task` | 删除任务 |
-| `trigger_cron_task` | 手动触发 |
-| `enable_cron_task` | 启用任务 |
-| `disable_cron_task` | 禁用任务 |
-| `list_executions` | 查看执行记录 |
-| `get_execution` | 获取执行详情 |
-| `get_execution_log` | 获取执行日志 |
-| `get_service_health` | 服务健康状态 |
 
 ---
 

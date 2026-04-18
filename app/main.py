@@ -17,6 +17,10 @@ logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 
+# MCP app needs its lifespan managed — create it before FastAPI so we can merge lifespans
+mcp_app = mcp.http_app(path="/")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting %s...", settings.APP_NAME)
@@ -26,7 +30,9 @@ async def lifespan(app: FastAPI):
         logger.info("Cleaned up %d expired log directories", removed)
     await init_scheduler()
     logger.info("%s started on %s:%d", settings.APP_NAME, settings.HOST, settings.PORT)
-    yield
+    # Enter MCP StreamableHTTP session manager lifespan
+    async with mcp_app.lifespan(mcp_app):
+        yield
     logger.info("Shutting down %s...", settings.APP_NAME)
     await shutdown_scheduler()
 
@@ -50,7 +56,6 @@ async def root():
 
 
 # MCP endpoint (streamable-http as primary, SSE as fallback)
-mcp_app = mcp.http_app(path="/")
 app.mount(settings.MCP_MOUNT_PATH, mcp_app)
 
 # Static dashboard UI — must be last mount (catches remaining paths)
