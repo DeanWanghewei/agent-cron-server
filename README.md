@@ -65,6 +65,7 @@ vim .env
 | `ACS_LOG_DIR` | `data/logs` | 日志文件存储目录 |
 | `ACS_LOG_RETENTION_DAYS` | `30` | 日志保留天数（0=永不清理） |
 | `ACS_MCP_MOUNT_PATH` | `/mcp` | MCP Server 挂载路径 |
+| `ACS_CALLBACK_SECRET` | _(空)_ | 回调 HMAC-SHA256 签名密钥 |
 
 ### 启动
 
@@ -255,6 +256,94 @@ mcporter call --allow-http --http-url http://localhost:8900/mcp/ get_execution_l
 
 > Hermes/OpenClaw 的 AI Agent 会自动通过内部 MCP client 调用这些 tools，
 > 无需手动使用 mcporter。以上 CLI 示例仅用于调试和手动测试。
+
+---
+
+## 任务执行回调（Callback）
+
+任务执行完成后可自动回调指定 URL，将执行结果以 JSON POST 方式推送。适用于：
+- 接入 AI Agent（如 Hermes）的 webhook，任务完成后自动通知
+- 对接企业 IM（飞书、钉钉）、监控系统等
+- 触发下游工作流
+
+### 开启回调
+
+**1. 为任务设置 `callback_url`**
+
+通过 MCP 或 REST API 更新任务：
+
+```bash
+# MCP 方式（推荐）
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ update_cron_task \
+  task_id=1 callback_url="http://localhost:8644/webhooks/my-callback"
+
+# REST API 方式
+curl -X PUT localhost:8900/api/v1/tasks/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"callback_url": "http://localhost:8644/webhooks/my-callback"}'
+```
+
+**2. （可选）配置 HMAC 签名密钥**
+
+如果你的回调端点需要签名验证（推荐），在 `.env` 中配置：
+
+```bash
+ACS_CALLBACK_SECRET=your-hmac-secret-here
+```
+
+配置后，回调请求会自动携带 `X-Webhook-Signature` 头（HMAC-SHA256），格式为 hex 摘要。
+
+> ⚠️ 不配置密钥则回调请求不带签名。如果你的回调端点强制验签，未配置密钥会导致 `401 Unauthorized`。
+
+**3. 验证端接收**
+
+回调端点需要接受 `POST` 请求，请求体为 JSON：
+
+```json
+{
+  "task_id": 1,
+  "task_name": "daily-backup",
+  "execution_id": 42,
+  "status": "success",
+  "exit_code": 0,
+  "duration_ms": 1234,
+  "started_at": "2026-04-18T09:00:00+08:00",
+  "finished_at": "2026-04-18T09:00:01+08:00",
+  "trigger_type": "cron",
+  "error_message": null,
+  "stdout_summary": "...(前 4096 字符)",
+  "stderr_summary": ""
+}
+```
+
+签名验证伪代码：
+
+```python
+import hmac, hashlib
+expected = hmac.new(SECRET.encode(), request_body, hashlib.sha256).hexdigest()
+assert request.headers["X-Webhook-Signature"] == expected
+```
+
+### 与 Hermes Webhook 集成
+
+如果回调目标是 Hermes Agent 的 webhook 订阅：
+
+```bash
+# 1. 创建 Hermes webhook 订阅
+hermes webhook subscribe my-callback \
+  --prompt "定时任务回调：任务 {task_name}，状态 {status}，耗时 {duration_ms}ms" \
+  --deliver weixin
+
+# 2. 记下输出的 Secret 和 URL
+
+# 3. 在 .env 中配置相同的密钥
+echo "ACS_CALLBACK_SECRET=<hermes-webhook-secret>" >> .env
+
+# 4. 重启服务
+sudo systemctl restart agent-cron-server
+```
+
+> 💡 Hermes webhook 支持 GitHub（`X-Hub-Signature-256`）、GitLab（`X-Gitlab-Token`）和通用（`X-Webhook-Signature`）三种签名格式，ACS 使用通用格式。
 
 ---
 
