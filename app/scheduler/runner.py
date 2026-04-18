@@ -74,6 +74,7 @@ async def _send_callback(
     error_message: str | None,
     stdout_path: Path | None,
     stderr_path: Path | None,
+    callback_prompt: str | None = None,
 ) -> None:
     """POST execution results to the callback URL."""
     import urllib.request
@@ -108,6 +109,7 @@ async def _send_callback(
         "error_message": error_message,
         "stdout_summary": stdout_summary,
         "stderr_summary": stderr_summary,
+        "callback_prompt": callback_prompt,
     }
 
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -235,6 +237,7 @@ async def run_task(task_id: int, trigger_type: str = "cron") -> None:
                     error_message=record.error_message,
                     stdout_path=stdout_path,
                     stderr_path=stderr_path,
+                    callback_prompt=task.callback_prompt,
                 )
 
 

@@ -40,6 +40,7 @@ async def create_cron_task(
     timeout: int = 3600,
     max_retries: int = 0,
     callback_url: str | None = None,
+    callback_prompt: str | None = None,
     owner_agent: str | None = None,
     tags: list[str] | None = None,
 ) -> str:
@@ -47,7 +48,10 @@ async def create_cron_task(
 
     If callback_url is provided, the server will POST execution results (JSON) to
     that URL after each run. Payload includes task_id, execution_id, status,
-    exit_code, duration_ms, stdout_summary, stderr_summary, etc.
+    exit_code, duration_ms, stdout_summary, stderr_summary, callback_prompt, etc.
+
+    callback_prompt is the per-task instruction for the callback handler (e.g. Hermes
+    webhook Agent). It tells the Agent how to analyze and act on the execution result.
     """
     async with async_session() as db:
         svc = TaskService(db)
@@ -56,7 +60,8 @@ async def create_cron_task(
             description=description, shell=shell, working_dir=working_dir,
             env_vars=env_vars, timezone=timezone, enabled=enabled,
             timeout=timeout, max_retries=max_retries,
-            callback_url=callback_url, owner_agent=owner_agent, tags=tags,
+            callback_url=callback_url, callback_prompt=callback_prompt,
+            owner_agent=owner_agent, tags=tags,
         ))
         add_job(task)
         return f"Task created: id={task.id}, name={task.name}, cron={task.cron_expression}"
@@ -107,6 +112,7 @@ async def get_cron_task(task_id: int) -> str:
             f"  Enabled: {task.enabled}\n"
             f"  Timeout: {task.timeout}s\n"
             f"  Callback URL: {task.callback_url or 'none'}\n"
+            f"  Callback Prompt: {task.callback_prompt or 'none'}\n"
             f"  Owner Agent: {task.owner_agent or 'any'}\n"
             f"  Tags: {task.tags or []}\n"
             f"  Created: {task.created_at}"
@@ -128,6 +134,7 @@ async def update_cron_task(
     timeout: int | None = None,
     max_retries: int | None = None,
     callback_url: str | None = None,
+    callback_prompt: str | None = None,
     owner_agent: str | None = None,
     tags: list[str] | None = None,
 ) -> str:
@@ -139,7 +146,8 @@ async def update_cron_task(
             "description": description, "shell": shell, "working_dir": working_dir,
             "env_vars": env_vars, "timezone": timezone, "enabled": enabled,
             "timeout": timeout, "max_retries": max_retries,
-            "callback_url": callback_url, "owner_agent": owner_agent, "tags": tags,
+            "callback_url": callback_url, "callback_prompt": callback_prompt,
+            "owner_agent": owner_agent, "tags": tags,
         }.items() if v is not None
     }
     async with async_session() as db:

@@ -30,6 +30,7 @@ class CronTask(Base):
 
     # Callback
     callback_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    callback_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Multi-agent
     owner_agent: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
