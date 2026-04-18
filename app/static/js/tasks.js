@@ -51,7 +51,7 @@ async function loadTasks(page) {
 
       var triggerBtn = document.createElement('button');
       triggerBtn.className = 'btn btn-sm btn-primary';
-      triggerBtn.textContent = 'Trigger';
+      triggerBtn.innerHTML = '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Trigger';
       triggerBtn.onclick = (function(tid, tname) {
         return function() { triggerTaskAction(tid, tname); };
       })(task.id, task.name);
@@ -59,7 +59,9 @@ async function loadTasks(page) {
 
       var toggleBtn = document.createElement('button');
       toggleBtn.className = 'btn btn-sm';
-      toggleBtn.textContent = task.enabled ? 'Disable' : 'Enable';
+      toggleBtn.innerHTML = task.enabled
+        ? '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Disable'
+        : '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Enable';
       toggleBtn.onclick = (function(tid, isEnabled) {
         return function() { toggleTaskAction(tid, isEnabled); };
       })(task.id, task.enabled);
@@ -67,7 +69,7 @@ async function loadTasks(page) {
 
       var delBtn = document.createElement('button');
       delBtn.className = 'btn btn-sm btn-danger';
-      delBtn.textContent = 'Delete';
+      delBtn.innerHTML = '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> Delete';
       delBtn.onclick = (function(tid, tname) {
         return function() { deleteTaskAction(tid, tname); };
       })(task.id, task.name);

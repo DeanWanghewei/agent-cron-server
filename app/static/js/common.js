@@ -128,7 +128,7 @@ function initLayout() {
   brand.className = 'sidebar-brand';
   var iconDiv = document.createElement('div');
   iconDiv.className = 'brand-icon';
-  iconDiv.textContent = '\u23F1';
+  iconDiv.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
   brand.appendChild(iconDiv);
   var brandText = document.createElement('span');
   brandText.className = 'brand-text';

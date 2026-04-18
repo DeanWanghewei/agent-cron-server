@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-04-18
+
+### Added
+
+- favicon.svg — clock icon with gradient, used across all pages
+- SVG icons on page headings (Dashboard, Tasks, Executions)
+- Stat cards with colored icon badges on Dashboard
+- SVG icons on action buttons (Trigger, Enable/Disable, Delete, Refresh, Log, View All)
+- Sidebar brand icon replaced with SVG clock
+
+### Changed
+
+- Execution `status` now only reflects process execution result, not business logic
+  - `success` — process ran and exited (any exit code)
+  - `timeout` — process killed after timeout
+  - `failed` — process failed to start or threw exception
+- `exit_code` preserved as metadata for callers to interpret
+- Alembic `init_db()` detects pre-alembic databases and auto-stamps head
+
+## [0.2.0] - 2026-04-18
+
 ## [0.2.0] - 2026-04-18
 
 ### Added
