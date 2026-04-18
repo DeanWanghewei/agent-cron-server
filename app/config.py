@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # MCP
     MCP_MOUNT_PATH: str = "/mcp"
 
-    model_config = {"env_file": ".env", "env_prefix": "ACS_"}
+    model_config = {"env_file": ".env", "env_prefix": "ACS_", "extra": "ignore"}
 
 
 settings = Settings()

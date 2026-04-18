@@ -351,27 +351,89 @@ fi
 
 ### Hermes Webhook 回调集成
 
-ACS 回调 → Hermes gateway webhook → 微信推送的完整链路：
+ACS 回调 → Hermes gateway webhook → Agent 分析处理 → 微信推送 的完整链路。
+
+> **⚠️ 关键原则：回调不是转发器！**
+> Agent 收到回调后应**真正分析数据**（用 read_file 读文件、用 send_message 推送），
+> 而不是简单模板匹配转发。脚本已自行推送的任务应静默，只有需要 Agent 处理的任务才触发分析。
+> 否则 callback 就没有存在的意义——脚本可以直接调用渠道发送。
 
 #### 1. 创建 Hermes Webhook 订阅
 
-```bash
-hermes webhook subscribe acs-callback \
-  --prompt "定时任务回调通知：
-任务: {task_name}
-状态: {status}
-退出码: {exit_code}
-耗时: {duration_ms}ms
-触发方式: {trigger_type}
+**⚠️ 重要：用 shell 变量传入 prompt，不要用 `read_file` 读取后传入（会带行号前缀 `     1|`）**
 
-stdout:
+```bash
+# 先写好 prompt 文件
+cat > /tmp/acs-callback-prompt.txt << 'PROMPT_EOF'
+你是 dean 的私人助手，收到了定时任务执行回调。请不要机械转发数据，而是**真正分析处理**后给 dean 有价值的信息。
+
+## 任务信息
+- 任务: {task_name}（ID: {task_id}）
+- 状态: {status}（退出码: {exit_code}）
+- 耗时: {duration_ms}ms | 触发方式: {trigger_type}
+
+## 执行输出
 {stdout_summary}
 
-请将结果整理后通过微信发送给 dean。" \
+---
+
+## 按任务类型处理
+
+### 招商蛇口回本提醒（task_id=1）
+脚本已自行推送微信。你只需：
+- stdout 含 "SILENT" 且 exit_code=1 → **不发消息**（正常静默）
+- stdout 含 "ALERT SENT" → **不发消息**（脚本已推送）
+- exit_code=2 或有 error → 发 "⚠️ 蛇口股价查询异常: ..."
+
+### 板块资金流向（task_id=2）/ 黄金日报（task_id=3）
+脚本已自行推送微信。你只需：
+- 正常完成 → **不发消息**
+- 异常 → 发 "⚠️ [任务名]推送异常: ..."
+
+### 金价小时级提醒（task_id=4）
+脚本本身不推送，需要你处理：
+- exit_code=0 且 stdout 为空 → **不发消息**（无异动）
+- stdout 有金价提醒内容 → **用 send_message 发微信**，整理成简洁提醒
+- 异常 → 发 "⚠️ 金价检查异常"
+
+### 金价每日趋势图（task_id=5）
+脚本发飞书。你只需：
+- 正常完成 → **不发消息**
+- 异常 → 发 "⚠️ 金价趋势图异常"
+
+### 新闻预采集（task_id=6）
+脚本只采集数据写JSON，不推送。这是**你真正需要分析的任务**：
+1. 用 read_file 读取 `/data_mnt/app/agent-cron-server/data/news/` 下今天的 JSON 文件
+2. 分析内容：挑出最有价值的 AI/科技新闻 5-8 条（去重、去水）
+3. 用 send_message 发微信给 dean，格式简洁
+4. 如果采集源大面积失败，额外提醒
+
+## 通用原则
+- 脚本已自行推送的任务 → 不要重复发消息，只在异常时通知
+- 需要你处理的任务 → 用工具读数据、分析、再推送
+- 一切正常且无值得关注的信息 → 可以不发消息
+- 语气简洁，dean 不喜欢啰嗦
+PROMPT_EOF
+
+# 用 shell 变量传入，避免行号前缀
+PROMPT=$(cat /tmp/acs-callback-prompt.txt)
+hermes webhook subscribe acs-callback \
+  --prompt "$PROMPT" \
+  --secret "<your-secret>" \
   --deliver weixin \
-  --description "Agent-Cron-Server 任务执行回调"
-# 输出包含 URL 和 Secret，记录 secret
+  --description "Agent-Cron-Server 任务回调（智能分析）"
 ```
+
+#### Prompt 设计原则
+
+1. **区分"已推送"和"需分析"的任务**：脚本已自行调用 send_message 的任务，callback 只需静默或确认
+2. **指导 Agent 用工具**：需要分析的任务，明确告诉 Agent 用 `read_file` 读数据文件、用 `send_message` 推送
+3. **明确"不发消息"条件**：正常静默任务要写清楚不发消息，避免 Agent 每次都发无意义确认
+4. **异常必须通知**：exit_code 异常、超时、失败都要通知
+
+> Hermes gateway 的 webhook handler 调用 `handle_message(event)`，
+> Agent **拥有完整工具调用能力**（read_file, send_message, terminal 等），
+> prompt 应充分利用这一点让 Agent 真正处理数据。
 
 #### 2. 配置 HMAC 签名
 
@@ -382,7 +444,7 @@ Hermes webhook 要求 HMAC-SHA256 签名验证。ACS 已内置签名支持：
 ACS_CALLBACK_SECRET=<hermes-webhook-secret>
 ```
 
-签名通过 `X-Webhook-Signature` header 传递，Hermesis 使用 Generic HMAC 模式验证。
+签名通过 `X-Webhook-Signature` header 传递，Hermes 使用 Generic HMAC 模式验证。
 
 #### 3. 给任务设置 callback_url
 
@@ -406,6 +468,7 @@ journalctl -u agent-cron-server --since "1 min ago" | grep -i callback
 - `callback_url` 可通过 `update_cron_task` 随时修改或清除
 - **HMAC 签名必须配置**，否则 Hermes gateway 返回 401 Unauthorized
 - Hermes webhook secret 在 `hermes webhook subscribe` 时生成，查看用 `hermes webhook list`
+- **更新 webhook prompt 时**：先 `hermes webhook remove acs-callback` 再重新 subscribe，不要尝试原地修改
 
 ## Verification
 
