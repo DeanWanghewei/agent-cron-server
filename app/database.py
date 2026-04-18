@@ -26,13 +26,39 @@ async def get_db() -> AsyncSession:
 
 
 def _run_alembic_upgrade() -> None:
-    """Run Alembic upgrade in a sync context (called from thread pool)."""
+    """Run Alembic upgrade in a sync context (called from thread pool).
+
+    Handles the migration from pre-alembic databases: if tables already exist
+    but no alembic_version record is found, stamps the current head before
+    running upgrade to avoid 'table already exists' errors.
+    """
     from alembic import command
     from alembic.config import Config
+    from sqlalchemy import create_engine, inspect
 
     alembic_cfg = Config()
     alembic_cfg.set_main_option("script_location", "alembic")
     alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+    # Detect pre-alembic database: tables exist but no alembic_version table
+    sync_url = settings.DATABASE_URL.replace("+aiosqlite", "").replace("+asyncpg", "+psycopg2")
+    engine = create_engine(sync_url)
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        has_alembic_version = "alembic_version" in existing_tables
+        has_data_tables = bool(existing_tables - {"alembic_version"})
+
+        if has_data_tables and not has_alembic_version:
+            logger.info(
+                "Detected pre-alembic database (%d tables, no alembic_version). "
+                "Stamping current head before migration.",
+                len(existing_tables),
+            )
+            command.stamp(alembic_cfg, "head")
+    finally:
+        engine.dispose()
+
     command.upgrade(alembic_cfg, "head")
 
 
