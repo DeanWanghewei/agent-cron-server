@@ -132,15 +132,19 @@ async def update_cron_task(
     tags: list[str] | None = None,
 ) -> str:
     """Update an existing scheduled task."""
+    # Only include fields that were explicitly provided (not None)
+    updates = {
+        k: v for k, v in {
+            "name": name, "command": command, "cron_expression": cron_expression,
+            "description": description, "shell": shell, "working_dir": working_dir,
+            "env_vars": env_vars, "timezone": timezone, "enabled": enabled,
+            "timeout": timeout, "max_retries": max_retries,
+            "callback_url": callback_url, "owner_agent": owner_agent, "tags": tags,
+        }.items() if v is not None
+    }
     async with async_session() as db:
         svc = TaskService(db)
-        task = await svc.update_task(task_id, TaskUpdate(
-            name=name, command=command, cron_expression=cron_expression,
-            description=description, shell=shell, working_dir=working_dir,
-            env_vars=env_vars, timezone=timezone, enabled=enabled,
-            timeout=timeout, max_retries=max_retries,
-            callback_url=callback_url, owner_agent=owner_agent, tags=tags,
-        ))
+        task = await svc.update_task(task_id, TaskUpdate(**updates))
         if task is None:
             return f"Task {task_id} not found."
         reschedule_job(task)

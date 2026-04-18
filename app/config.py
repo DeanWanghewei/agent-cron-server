@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8900
 
+    # Callback
+    CALLBACK_SECRET: str = ""  # HMAC-SHA256 secret for webhook callback signing
+
     # MCP
     MCP_MOUNT_PATH: str = "/mcp"
 

@@ -111,10 +111,27 @@ async def _send_callback(
     }
 
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    # Build headers
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "agent-cron-server/0.4.0",
+    }
+
+    # Sign with HMAC-SHA256 if secret is configured
+    from app.config import settings
+    if settings.CALLBACK_SECRET:
+        import hmac as hmac_mod
+        import hashlib
+        sig = hmac_mod.new(
+            settings.CALLBACK_SECRET.encode(), body, hashlib.sha256
+        ).hexdigest()
+        headers["X-Webhook-Signature"] = sig
+
     req = urllib.request.Request(
         callback_url,
         data=body,
-        headers={"Content-Type": "application/json", "User-Agent": "agent-cron-server/0.4.0"},
+        headers=headers,
         method="POST",
     )
 

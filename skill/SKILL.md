@@ -268,6 +268,8 @@ fi
 ## Pitfalls
 
 - **⛔ 禁止 curl/API**：不要使用 `curl http://localhost:8900/api/v1/...`，不要用 Python `urllib`/`requests` 调 REST API。必须通过 MCP tools 交互（内部 MCP client 或 mcporter CLI）。
+- **update_cron_task 只传需要更新的字段**：FastMCP 会把所有参数（包括 None）传给工具函数，导致 Pydantic `model_dump(exclude_unset=True)` 失效、NOT NULL 冲突。已修复：只传非 None 字段给 `TaskUpdate`。但如果将来 schema 变动，注意此陷阱。
+- **Callback 401 错误**：回调目标如果是 Hermes webhook，必须配置 `ACS_CALLBACK_SECRET` 并匹配 webhook 订阅的 secret，否则返回 401 Unauthorized。
 - **Server not running**: MCP tool 调用会报错。先 `get_service_health()` 检查，未运行则用 terminal 启动。
 - **Cron expression**: 必须使用标准 5 字段格式，非法表达式会返回错误。
 - **Command paths**: 使用绝对路径，避免子进程环境中 PATH 问题。
@@ -332,11 +334,63 @@ fi
 | `stdout_summary` | stdout 输出（截断至 4096 字符） |
 | `stderr_summary` | stderr 输出（截断至 4096 字符） |
 
+### Hermes Webhook 回调集成
+
+ACS 回调 → Hermes gateway webhook → 微信推送的完整链路：
+
+#### 1. 创建 Hermes Webhook 订阅
+
+```bash
+hermes webhook subscribe acs-callback \
+  --prompt "定时任务回调通知：
+任务: {task_name}
+状态: {status}
+退出码: {exit_code}
+耗时: {duration_ms}ms
+触发方式: {trigger_type}
+
+stdout:
+{stdout_summary}
+
+请将结果整理后通过微信发送给 dean。" \
+  --deliver weixin \
+  --description "Agent-Cron-Server 任务执行回调"
+# 输出包含 URL 和 Secret，记录 secret
+```
+
+#### 2. 配置 HMAC 签名
+
+Hermes webhook 要求 HMAC-SHA256 签名验证。ACS 已内置签名支持：
+
+`.env` 中设置 secret（与 Hermes webhook 订阅的 secret 一致）：
+```
+ACS_CALLBACK_SECRET=<hermes-webhook-secret>
+```
+
+签名通过 `X-Webhook-Signature` header 传递，Hermesis 使用 Generic HMAC 模式验证。
+
+#### 3. 给任务设置 callback_url
+
+```bash
+$MCPORTER update_cron_task task_id=4 callback_url="http://localhost:8644/webhooks/acs-callback"
+```
+
+#### 4. 触发测试
+
+```bash
+$MCPORTER trigger_cron_task task_id=4
+# 检查日志确认回调成功
+journalctl -u agent-cron-server --since "1 min ago" | grep -i callback
+# 期望: "Callback sent to ... HTTP 202"
+```
+
 ### 注意事项
 
 - 回调超时 10 秒，失败只记录 warning 日志，不影响任务执行
 - stdout/stderr 摘要最多 4096 字符，完整日志通过 `get_execution_log` MCP tool 获取
 - `callback_url` 可通过 `update_cron_task` 随时修改或清除
+- **HMAC 签名必须配置**，否则 Hermes gateway 返回 401 Unauthorized
+- Hermes webhook secret 在 `hermes webhook subscribe` 时生成，查看用 `hermes webhook list`
 
 ## Verification
 
