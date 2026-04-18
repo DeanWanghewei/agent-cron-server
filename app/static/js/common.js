@@ -2,6 +2,8 @@
 
 function formatTime(iso) {
   if (!iso) return '-';
+  // Backend stores UTC without 'Z' suffix — force JS to parse as UTC
+  if (!iso.endsWith('Z') && !iso.includes('+')) iso += 'Z';
   var d = new Date(iso);
   return d.toLocaleString('zh-CN', {
     month: '2-digit', day: '2-digit',
