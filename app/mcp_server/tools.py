@@ -39,10 +39,16 @@ async def create_cron_task(
     enabled: bool = True,
     timeout: int = 3600,
     max_retries: int = 0,
+    callback_url: str | None = None,
     owner_agent: str | None = None,
     tags: list[str] | None = None,
 ) -> str:
-    """Create a new scheduled task that runs a shell command on a cron schedule."""
+    """Create a new scheduled task that runs a shell command on a cron schedule.
+
+    If callback_url is provided, the server will POST execution results (JSON) to
+    that URL after each run. Payload includes task_id, execution_id, status,
+    exit_code, duration_ms, stdout_summary, stderr_summary, etc.
+    """
     async with async_session() as db:
         svc = TaskService(db)
         task = await svc.create_task(TaskCreate(
@@ -50,7 +56,7 @@ async def create_cron_task(
             description=description, shell=shell, working_dir=working_dir,
             env_vars=env_vars, timezone=timezone, enabled=enabled,
             timeout=timeout, max_retries=max_retries,
-            owner_agent=owner_agent, tags=tags,
+            callback_url=callback_url, owner_agent=owner_agent, tags=tags,
         ))
         add_job(task)
         return f"Task created: id={task.id}, name={task.name}, cron={task.cron_expression}"
@@ -100,6 +106,7 @@ async def get_cron_task(task_id: int) -> str:
             f"  Timezone: {task.timezone}\n"
             f"  Enabled: {task.enabled}\n"
             f"  Timeout: {task.timeout}s\n"
+            f"  Callback URL: {task.callback_url or 'none'}\n"
             f"  Owner Agent: {task.owner_agent or 'any'}\n"
             f"  Tags: {task.tags or []}\n"
             f"  Created: {task.created_at}"
@@ -120,6 +127,7 @@ async def update_cron_task(
     enabled: bool | None = None,
     timeout: int | None = None,
     max_retries: int | None = None,
+    callback_url: str | None = None,
     owner_agent: str | None = None,
     tags: list[str] | None = None,
 ) -> str:
@@ -131,7 +139,7 @@ async def update_cron_task(
             description=description, shell=shell, working_dir=working_dir,
             env_vars=env_vars, timezone=timezone, enabled=enabled,
             timeout=timeout, max_retries=max_retries,
-            owner_agent=owner_agent, tags=tags,
+            callback_url=callback_url, owner_agent=owner_agent, tags=tags,
         ))
         if task is None:
             return f"Task {task_id} not found."

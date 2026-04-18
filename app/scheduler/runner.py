@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import shutil
@@ -57,6 +58,81 @@ def cleanup_expired_logs() -> int:
             logger.info("Cleaned up expired log directory: %s", entry.name)
 
     return removed
+
+
+async def _send_callback(
+    callback_url: str,
+    task_id: int,
+    task_name: str,
+    execution_id: int,
+    status: str,
+    exit_code: int | None,
+    duration_ms: int | None,
+    started_at: datetime | None,
+    finished_at: datetime | None,
+    trigger_type: str,
+    error_message: str | None,
+    stdout_path: Path | None,
+    stderr_path: Path | None,
+) -> None:
+    """POST execution results to the callback URL."""
+    import urllib.request
+    import urllib.error
+
+    # Read stdout/stderr with a size limit for the payload
+    stdout_summary = ""
+    stderr_summary = ""
+    max_summary = 4096
+
+    if stdout_path and stdout_path.exists():
+        try:
+            stdout_summary = stdout_path.read_text(encoding="utf-8", errors="replace")[:max_summary]
+        except Exception:
+            pass
+    if stderr_path and stderr_path.exists():
+        try:
+            stderr_summary = stderr_path.read_text(encoding="utf-8", errors="replace")[:max_summary]
+        except Exception:
+            pass
+
+    payload = {
+        "task_id": task_id,
+        "task_name": task_name,
+        "execution_id": execution_id,
+        "status": status,
+        "exit_code": exit_code,
+        "duration_ms": duration_ms,
+        "started_at": started_at.isoformat() if started_at else None,
+        "finished_at": finished_at.isoformat() if finished_at else None,
+        "trigger_type": trigger_type,
+        "error_message": error_message,
+        "stdout_summary": stdout_summary,
+        "stderr_summary": stderr_summary,
+    }
+
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        callback_url,
+        data=body,
+        headers={"Content-Type": "application/json", "User-Agent": "agent-cron-server/0.4.0"},
+        method="POST",
+    )
+
+    try:
+        loop = asyncio.get_running_loop()
+        resp = await loop.run_in_executor(
+            None,
+            lambda: urllib.request.urlopen(req, timeout=10),
+        )
+        logger.info(
+            "Callback sent to %s: HTTP %d (task=%d, exec=%d)",
+            callback_url, resp.status, task_id, execution_id,
+        )
+    except Exception as e:
+        logger.warning(
+            "Callback failed for %s: %s (task=%d, exec=%d)",
+            callback_url, e, task_id, execution_id,
+        )
 
 
 async def run_task(task_id: int, trigger_type: str = "cron") -> None:
@@ -125,6 +201,24 @@ async def run_task(task_id: int, trigger_type: str = "cron") -> None:
                 delta = record.finished_at - record.started_at
                 record.duration_ms = int(delta.total_seconds() * 1000)
             await db.commit()
+
+            # Send callback if configured
+            if task.callback_url:
+                await _send_callback(
+                    callback_url=task.callback_url,
+                    task_id=task.id,
+                    task_name=task.name,
+                    execution_id=record.id,
+                    status=record.status,
+                    exit_code=record.exit_code,
+                    duration_ms=record.duration_ms,
+                    started_at=record.started_at,
+                    finished_at=record.finished_at,
+                    trigger_type=trigger_type,
+                    error_message=record.error_message,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                )
 
 
 async def _execute_command(

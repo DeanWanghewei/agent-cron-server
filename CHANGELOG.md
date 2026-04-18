@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-04-18
+
+### Added
+
+- `callback_url` field on cron tasks — POST execution results (JSON) to a URL after each run
+  - Payload includes task_id, execution_id, status, exit_code, duration, stdout/stderr summary
+  - Supports OpenClaw Gateway webhooks and custom integrations
+  - Timeout 10s, failure logged as warning (does not affect task execution)
+- `callback_url` parameter in `create_cron_task` and `update_cron_task` MCP tools
+- Alembic migration `63357c35fa64` for the new `callback_url` column
+- SKILL.md documentation for callback mechanism with payload format reference
+
 ## [0.3.0] - 2026-04-18
 
 ### Added

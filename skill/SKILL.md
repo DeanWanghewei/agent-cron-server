@@ -1,7 +1,7 @@
 ---
 name: agent-cron
 description: Scheduled task execution service — create, manage, and monitor cron tasks that run shell commands/scripts via MCP tools.
-version: 0.3.0
+version: 0.4.0
 author: agent-cron-server
 license: MIT
 platforms: [macos, linux]
@@ -124,6 +124,7 @@ $MCPORTER list_cron_tasks --output json
 - `timezone` — 时区（默认 `Asia/Shanghai`）
 - `timeout` — 超时秒数（默认 3600）
 - `max_retries` — 最大重试次数
+- `callback_url` — 执行完成后回调通知地址（POST JSON）
 - `owner_agent` — 所属 agent 标识
 - `tags` — 标签列表，如 `["report", "daily"]`
 
@@ -272,6 +273,70 @@ fi
 - **Command paths**: 使用绝对路径，避免子进程环境中 PATH 问题。
 - **Timeout**: 长时间运行的脚本需设更大 `timeout`，超时状态为 "timeout"。
 - **Timezone**: 默认 `Asia/Shanghai`，不同时区需显式指定。
+- **Callback**: `callback_url` 必须是可访问的 HTTP(S) URL，服务会 POST JSON。回调失败不会影响任务执行结果。stdout/stderr 摘要限制 4096 字符。
+
+## Callback 通知机制
+
+创建任务时可指定 `callback_url`，任务执行完成后服务会向该 URL 发送 POST 请求，携带执行结果 JSON。
+
+### 使用场景
+
+- Agent 提交定时任务后，执行完成自动收到通知，无需轮询
+- 与 OpenClaw Gateway 集成：POST 到 Gateway webhook 触发后续 agent 处理
+- 与企业 IM 集成：POST 到 Webhook Bot 发送执行结果通知
+
+### 创建带回调的任务
+
+```
+→ create_cron_task(
+    name="daily-report",
+    command="python3 /path/to/report.py",
+    cron_expression="0 9 * * *",
+    callback_url="https://your-gateway.example.com/hooks/cron-done"
+  )
+```
+
+### 回调 Payload 格式
+
+任务执行完成后，服务向 `callback_url` 发送如下 JSON（`Content-Type: application/json`）：
+
+```json
+{
+  "task_id": 1,
+  "task_name": "daily-report",
+  "execution_id": 42,
+  "status": "success",
+  "exit_code": 0,
+  "duration_ms": 1230,
+  "started_at": "2026-04-18T09:00:00",
+  "finished_at": "2026-04-18T09:00:01",
+  "trigger_type": "cron",
+  "error_message": null,
+  "stdout_summary": "Report generated: 42 items...",
+  "stderr_summary": ""
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `task_id` | 任务 ID |
+| `task_name` | 任务名称 |
+| `execution_id` | 执行记录 ID |
+| `status` | 执行状态：`success` / `timeout` / `failed` |
+| `exit_code` | 进程退出码（`null` 表示启动失败） |
+| `duration_ms` | 执行耗时毫秒数 |
+| `started_at` | 开始时间（ISO 8601） |
+| `finished_at` | 结束时间（ISO 8601） |
+| `trigger_type` | 触发类型：`cron` / `manual` |
+| `error_message` | 错误信息（仅 `timeout`/`failed`） |
+| `stdout_summary` | stdout 输出（截断至 4096 字符） |
+| `stderr_summary` | stderr 输出（截断至 4096 字符） |
+
+### 注意事项
+
+- 回调超时 10 秒，失败只记录 warning 日志，不影响任务执行
+- stdout/stderr 摘要最多 4096 字符，完整日志通过 `get_execution_log` MCP tool 获取
+- `callback_url` 可通过 `update_cron_task` 随时修改或清除
 
 ## Verification
 

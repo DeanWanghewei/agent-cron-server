@@ -15,6 +15,7 @@ class TaskCreate(BaseModel):
     enabled: bool = True
     timeout: int = 3600
     max_retries: int = 0
+    callback_url: str | None = Field(None, max_length=1024)
     owner_agent: str | None = Field(None, max_length=100)
     tags: list[str] | None = None
 
@@ -31,6 +32,7 @@ class TaskUpdate(BaseModel):
     enabled: bool | None = None
     timeout: int | None = None
     max_retries: int | None = None
+    callback_url: str | None = Field(None, max_length=1024)
     owner_agent: str | None = Field(None, max_length=100)
     tags: list[str] | None = None
 
@@ -48,6 +50,7 @@ class TaskRead(BaseModel):
     enabled: bool
     timeout: int
     max_retries: int
+    callback_url: str | None
     owner_agent: str | None
     tags: list | None
     created_at: datetime | None

@@ -28,6 +28,9 @@ class CronTask(Base):
     timeout: Mapped[int] = mapped_column(Integer, default=3600)
     max_retries: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Callback
+    callback_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
     # Multi-agent
     owner_agent: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
 
