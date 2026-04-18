@@ -60,11 +60,26 @@ sleep 2
 
 ## How to Call MCP Tools
 
+## MCP Server 配置名称
+
+> **MCP 在 Hermes/OpenClaw config.yaml 中注册的 server 名称为 `agent-cron`。**
+>
+> - Hermes 内部 MCP client 注册的工具前缀为 **`mcp_agent_cron_*`**（如 `mcp_agent_cron_list_cron_tasks`）
+> - OpenClaw 同理，注册为配置中的 server 名称对应前缀
+>
+> 配置方式：
+> ```yaml
+> mcpServers:
+>   agent-cron:
+>     transport: streamable-http
+>     url: http://localhost:8900/mcp/
+> ```
+
 ### 方式一：Hermes/OpenClaw 内部 MCP Client（Agent 首选）
 
-Agent 运行时已自动连接 MCP Server，可直接调用 tools。调用方式取决于 Agent 的内部集成：
-- Hermes：tools 会自动注册为 `mcp_agent_cron_*` 前缀，直接在对话中调用即可
-- OpenClaw：类似，通过 MCP client 自动发现
+Agent 运行时已自动连接 MCP Server，可直接调用 tools。
+- Hermes：tools 自动注册为 **`mcp_agent_cron_*`** 前缀（如 `mcp_agent_cron_get_service_health`），直接在对话中调用
+- OpenClaw：类似，通过 MCP client 自动发现，前缀取决于配置中的 server 名称
 
 ### 方式二：mcporter CLI（调试/手动测试）
 
