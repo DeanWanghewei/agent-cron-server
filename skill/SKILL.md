@@ -1,7 +1,7 @@
 ---
 name: agent-cron
 description: Scheduled task execution service — create, manage, and monitor cron tasks that run shell commands/scripts via MCP tools.
-version: 0.2.0
+version: 0.3.0
 author: agent-cron-server
 license: MIT
 platforms: [macos, linux]
@@ -172,6 +172,77 @@ $MCPORTER list_cron_tasks --output json
 → update_cron_task(task_id=1, timeout=600)  # 修改配置
 → delete_cron_task(task_id=1)         # 删除任务及历史
 ```
+
+## 日志记录机制
+
+每次任务执行时，服务的调度器会捕获子进程的 **stdout** 和 **stderr**，分别存储到按日期归档的日志文件中（`data/logs/YYYY-MM-DD/task_{id}_{exec_id}_{stdout|stderr}.log`）。
+
+### stdout 与 stderr 的正确使用
+
+编写定时任务脚本时，应遵循 Unix 惯例区分 stdout 和 stderr：
+
+| 流 | 用途 | 示例 |
+|----|------|------|
+| **stdout** | 正常输出：脚本结果、数据、处理摘要 | `print("Report: 42 items processed")` |
+| **stderr** | 诊断信息：警告、错误、调试日志 | `print("Warning: file not found", file=sys.stderr)` |
+
+### 脚本编写规范
+
+**Python 脚本示例**：
+
+```python
+import sys
+
+# 正常结果输出到 stdout
+print("✅ Report generated: 42 items, total $12,340")
+
+# 警告和错误输出到 stderr
+if missing_files:
+    print(f"⚠ Warning: {len(missing_files)} files skipped", file=sys.stderr)
+
+# 发生错误时，错误信息写 stderr，然后用非零 exit code 退出
+try:
+    result = do_work()
+except Exception as e:
+    print(f"❌ Error: {e}", file=sys.stderr)
+    sys.exit(1)
+```
+
+**Shell 脚本示例**：
+
+```bash
+# 正常输出 → stdout
+echo "Backup completed: 120MB"
+
+# 警告/错误 → stderr (>&2)
+echo "Warning: disk usage at 85%" >&2
+
+# 错误时非零退出
+if ! curl -s "$URL" > /dev/null; then
+  echo "Error: failed to reach $URL" >&2
+  exit 1
+fi
+```
+
+### 执行状态说明
+
+| Status | 含义 |
+|--------|------|
+| `success` | 进程正常执行并退出（任何 exit code） |
+| `timeout` | 进程超过 `timeout` 秒被强制终止 |
+| `failed` | 进程启动失败或抛出未捕获异常 |
+
+`exit_code` 字段记录进程的退出码。脚本可通过 `exit 0`/`exit 1` 等传递业务状态，但不会影响 execution 的 status 字段。
+
+### 日志查看
+
+```
+→ get_execution_log(execution_id=1)
+← "=== STDOUT ===\nReport generated: 42 items\n\n=== STDERR ===\n"
+```
+
+- 日志按日期目录存储，超过 `LOG_RETENTION_DAYS`（默认 30 天）自动清理
+- 单条日志上限 `LOG_MAX_SIZE`（默认 1MB），超出部分自动截断
 
 ## Cron Expression Format
 
