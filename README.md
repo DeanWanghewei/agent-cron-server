@@ -312,9 +312,12 @@ ACS_CALLBACK_SECRET=your-hmac-secret-here
   "trigger_type": "cron",
   "error_message": null,
   "stdout_summary": "...(前 4096 字符)",
-  "stderr_summary": ""
+  "stderr_summary": "",
+  "callback_prompt": "脚本已完成，请检查执行结果并通知用户。"
 }
 ```
+
+> 💡 `callback_prompt` 是可选字段，来自任务的 `callback_prompt` 属性。如果任务未设置，值为 `null`。详见下方「Hermes Webhook 集成」。
 
 签名验证伪代码：
 
@@ -330,20 +333,48 @@ assert request.headers["X-Webhook-Signature"] == expected
 
 ```bash
 # 1. 创建 Hermes webhook 订阅
+#    prompt 中可使用 {dot.notation} 引用 payload 字段
+#    {callback_prompt} 会被替换为任务级别的指令
 hermes webhook subscribe my-callback \
-  --prompt "定时任务回调：任务 {task_name}，状态 {status}，耗时 {duration_ms}ms" \
+  --prompt "{callback_prompt}\n\n## 执行结果\n- 任务: {task_name}（ID: {task_id}）\n- 状态: {status}（退出码: {exit_code}）\n- 耗时: {duration_ms}ms\n\n## 执行输出\n{stdout_summary}" \
   --deliver weixin
 
 # 2. 记下输出的 Secret 和 URL
 
 # 3. 在 .env 中配置相同的密钥
-echo "ACS_CALLBACK_SECRET=<hermes-webhook-secret>" >> .env
+echo "ACS_CALLBACK_SECRET=<hermes输出的secret>" >> .env
 
 # 4. 重启服务
 sudo systemctl restart agent-cron-server
 ```
 
 > 💡 Hermes webhook 支持 GitHub（`X-Hub-Signature-256`）、GitLab（`X-Gitlab-Token`）和通用（`X-Webhook-Signature`）三种签名格式，ACS 使用通用格式。
+
+#### Per-Task Callback Prompt（推荐）
+
+每个任务可以设置专属的 `callback_prompt`，告诉回调端（如 Hermes Agent）如何处理该任务的执行结果：
+
+```bash
+# 创建时指定
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ create_cron_task \
+  name="news-fetch" \
+  command="/opt/scripts/fetch_news.sh" \
+  cron_expression="0 8 * * *" \
+  callback_url="http://localhost:8644/webhooks/my-callback" \
+  callback_prompt="脚本只采集写JSON不推送。用read_file读/data/app/news/今天JSON，挑AI/科技5-8条，用send_message发微信。"
+
+# 更新已有任务的 callback_prompt
+mcporter call --allow-http --http-url http://localhost:8900/mcp/ update_cron_task \
+  task_id=1 \
+  callback_prompt="脚本已自行推送微信。正常完成不发消息。仅异常时通知。"
+```
+
+**设计思路：**
+
+- **不需要 Agent 分析的任务**（如脚本自行推送微信）：设为 `正常完成不发消息，仅异常通知`
+- **需要 Agent 处理的任务**（如采集数据待分析）：设为具体指令，如 `用read_file读数据，筛选后send_message推送`
+- Webhook 订阅的 prompt 模板用 `{callback_prompt}` 占位，ACS 会在 payload 中传入任务级别的 prompt
+- 这样一个 webhook 订阅就能服务所有任务，由每个任务自己决定 Agent 该做什么
 
 ---
 
