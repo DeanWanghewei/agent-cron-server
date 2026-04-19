@@ -31,6 +31,7 @@ async def create_cron_task(
     name: str,
     command: str,
     cron_expression: str,
+    owner_agent: str,
     description: str | None = None,
     shell: bool = True,
     working_dir: str | None = None,
@@ -41,7 +42,6 @@ async def create_cron_task(
     max_retries: int = 0,
     callback_url: str | None = None,
     callback_prompt: str | None = None,
-    owner_agent: str = ...,
     tags: list[str] | None = None,
 ) -> str:
     """Create a new scheduled task that runs a shell command on a cron schedule.
