@@ -129,7 +129,7 @@ $MCPORTER list_cron_tasks --output json
 
 ### create_cron_task 完整参数
 
-**必填**: `name`, `command`, `cron_expression`
+**必填**: `name`, `command`, `cron_expression`, `owner_agent`
 
 **可选**:
 - `description` — 任务描述
@@ -140,7 +140,7 @@ $MCPORTER list_cron_tasks --output json
 - `timeout` — 超时秒数（默认 3600）
 - `max_retries` — 最大重试次数
 - `callback_url` — 执行完成后回调通知地址（POST JSON）
-- `owner_agent` — 所属 agent 标识
+- `callback_prompt` — 回调处理指令，告诉回调端如何处理该任务的结果
 - `tags` — 标签列表，如 `["report", "daily"]`
 
 ## Procedure
@@ -159,6 +159,7 @@ $MCPORTER list_cron_tasks --output json
     name="daily-report",
     command="python3 /path/to/report.py",
     cron_expression="0 9 * * *",
+    owner_agent="hermes",
     description="Generate daily report",
     timezone="Asia/Shanghai",
     timeout=300

@@ -41,10 +41,13 @@ async def create_cron_task(
     max_retries: int = 0,
     callback_url: str | None = None,
     callback_prompt: str | None = None,
-    owner_agent: str | None = None,
+    owner_agent: str = ...,
     tags: list[str] | None = None,
 ) -> str:
     """Create a new scheduled task that runs a shell command on a cron schedule.
+
+    owner_agent is required to identify which agent owns this task, preventing
+    accidental cross-agent management in multi-agent environments.
 
     If callback_url is provided, the server will POST execution results (JSON) to
     that URL after each run. Payload includes task_id, execution_id, status,
