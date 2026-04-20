@@ -39,6 +39,8 @@
 
 /* ===== Dark Theme ===== */
 [data-theme="dark"] {
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
   --bg: #0f172a;
   --card-bg: #1e293b;
   --text: #e2e8f0;
@@ -46,15 +48,15 @@
   --border: #334155;
   --sidebar-bg: #0f172a;
   --sidebar-text: #94a3b8;
-  --sidebar-active: #4f46e5;
+  --sidebar-active: #60a5fa;
   --sidebar-hover: #1e293b;
   --shadow: 0 1px 3px rgba(0,0,0,.3);
   --badge-success-bg: #064e3b; --badge-success-fg: #6ee7b7;
   --badge-danger-bg: #7f1d1d;  --badge-danger-fg: #fca5a5;
   --badge-warning-bg: #78350f; --badge-warning-fg: #fcd34d;
-  --badge-info-bg: #1e3a5f;    --badge-info-fg: #93c5fd;
-  --badge-gray-bg: #334155;    --badge-gray-fg: #cbd5e1;
-  --badge-primary-bg: #312e81; --badge-primary-fg: #a5b4fc;
+  --badge-info-bg: #1e3a8a;    --badge-info-fg: #93c5fd;
+  --badge-gray-bg: #3f4f66;    --badge-gray-fg: #cbd5e1;
+  --badge-primary-bg: #1e3a8a; --badge-primary-fg: #93c5fd;
   --log-bg: #0f172a;
   --log-fg: #cdd6f4;
 }
@@ -62,6 +64,8 @@
 /* System: match OS preference */
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
+    --primary: #60a5fa;
+    --primary-hover: #3b82f6;
     --bg: #0f172a;
     --card-bg: #1e293b;
     --text: #e2e8f0;
@@ -69,15 +73,15 @@
     --border: #334155;
     --sidebar-bg: #0f172a;
     --sidebar-text: #94a3b8;
-    --sidebar-active: #4f46e5;
+    --sidebar-active: #60a5fa;
     --sidebar-hover: #1e293b;
     --shadow: 0 1px 3px rgba(0,0,0,.3);
     --badge-success-bg: #064e3b; --badge-success-fg: #6ee7b7;
     --badge-danger-bg: #7f1d1d;  --badge-danger-fg: #fca5a5;
     --badge-warning-bg: #78350f; --badge-warning-fg: #fcd34d;
-    --badge-info-bg: #1e3a5f;    --badge-info-fg: #93c5fd;
-    --badge-gray-bg: #334155;    --badge-gray-fg: #cbd5e1;
-    --badge-primary-bg: #312e81; --badge-primary-fg: #a5b4fc;
+    --badge-info-bg: #1e3a8a;    --badge-info-fg: #93c5fd;
+    --badge-gray-bg: #3f4f66;    --badge-gray-fg: #cbd5e1;
+    --badge-primary-bg: #1e3a8a; --badge-primary-fg: #93c5fd;
     --log-bg: #0f172a;
     --log-fg: #cdd6f4;
   }
@@ -201,6 +205,9 @@ body {
   padding: 24px 32px;
   max-width: 1200px;
 }
+
+.main a { color: var(--primary); text-decoration: none; }
+.main a:hover { text-decoration: underline; }
 
 /* Page header */
 .page-header {
@@ -326,7 +333,7 @@ table {
 table th {
   text-align: left;
   padding: 10px 16px;
-  background: var(--bg);
+  background: var(--card-bg);
   border-bottom: 2px solid var(--border);
   font-weight: 600;
   color: var(--text-secondary);
@@ -343,6 +350,10 @@ table td {
 }
 
 table tr:hover { background: var(--bg); }
+[data-theme="dark"] table tr:hover { background: rgba(255,255,255,0.04); }
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] table tr:hover { background: rgba(255,255,255,0.04); }
+}
 
 table td.command-cell {
   max-width: 280px;
@@ -389,6 +400,10 @@ table td.command-cell {
 }
 
 .btn:hover { background: var(--bg); border-color: var(--text-secondary); }
+[data-theme="dark"] .btn:hover { background: rgba(255,255,255,0.08); }
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .btn:hover { background: rgba(255,255,255,0.08); }
+}
 
 .btn-primary {
   background: var(--primary);
@@ -420,6 +435,22 @@ table td.command-cell {
   font-size: 13px;
   background: var(--card-bg);
   color: var(--text);
+  font-family: inherit;
+}
+
+.filters select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+.filters select:focus, .filters input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.25);
 }
 
 /* Detail info grid */
@@ -554,6 +585,17 @@ table td.command-cell {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: .4; }
+}
+
+/* Dark-mode: brighter select arrow */
+[data-theme="dark"] .filters select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .filters select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  }
 }
 
 /* Responsive */
