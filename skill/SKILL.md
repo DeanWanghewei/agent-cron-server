@@ -60,27 +60,15 @@ sleep 2
 
 ## MCP Server 配置
 
-> **MCP 在 Hermes/OpenClaw config.yaml 中注册的 server 名称为 `acs`。**
->
-> 注册后工具前缀为 **`mcp_acs_*`**（如 `mcp_acs_create_cron_task`）。
+> **MCP 注册名称固定为 `mcp_acs`，工具前缀固定为 `mcp_acs_`。**
 >
 > 配置方式：
 > ```yaml
 > mcpServers:
->   acs:
+>   mcp_acs:
 >     transport: streamable-http
 >     url: http://localhost:8900/mcp/
 > ```
-
-### ⚠️ 首次加载时：校验工具名称
-
-加载本 skill 后，**必须先确认实际注册的 MCP 工具名称是否与本文档一致**：
-
-1. 列出当前可用的 MCP 工具，找到以 `create_cron_task` 结尾的工具
-2. 确认其完整前缀（可能是 `mcp_acs_`、`mcp_agent_cron_` 或其他）
-3. 如果前缀**不是** `mcp_acs_`，则将本文档中所有 `mcp_acs_` 替换为实际前缀
-
-**为什么要做这步？** 不同 agent 框架或不同配置中的 server 名称可能不同，导致工具前缀不一致。直接使用本文档中的名称调用会失败。以实际注册的工具名称为准。
 
 ### Hermes/OpenClaw 内部调用
 
@@ -295,7 +283,7 @@ fi
 ## Pitfalls
 
 - **⛔ 禁止 curl/API**：不要使用 `curl http://localhost:8900/api/v1/...`，不要用 Python `urllib`/`requests` 调 REST API。必须通过 MCP tools 交互。
-- **工具名称前缀**：Agent 内部调用时必须使用 `mcp_acs_` 前缀（如 `mcp_acs_create_cron_task`），mcporter CLI 使用原始名称。
+- **工具名称**：Agent 内部调用时使用 `mcp_acs_` 前缀（如 `mcp_acs_create_cron_task`），mcporter CLI 使用原始名称。
 - **mcp_acs_update_cron_task 只传需要更新的字段**：FastMCP 会把所有参数（包括 None）传给工具函数，导致 Pydantic `model_dump(exclude_unset=True)` 失效、NOT NULL 冲突。已修复：只传非 None 字段给 `TaskUpdate`。但如果将来 schema 变动，注意此陷阱。
 - **Callback 401 错误**：回调目标如果是 Hermes webhook，必须配置 `ACS_CALLBACK_SECRET` 并匹配 webhook 订阅的 secret，否则返回 401 Unauthorized。
 - **Server not running**: MCP tool 调用会报错。先 `mcp_acs_get_service_health()` 检查，未运行则用 terminal 启动。

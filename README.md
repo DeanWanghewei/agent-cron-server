@@ -208,12 +208,12 @@ sudo systemctl start agent-cron-server
 > 本服务已在 Hermes/OpenClaw 的 `config.yaml` 中配置为 MCP Server：
 > ```yaml
 > mcpServers:
->   acs:
+>   mcp_acs:
 >     transport: streamable-http
 >     url: http://localhost:8900/mcp/
 > ```
 >
-> 注册后工具前缀为 **`mcp_acs_*`**（如 `mcp_acs_create_cron_task`）。Agent 可直接调用以下 MCP tools，**无需 curl、无需 HTTP 请求**：
+> 注册后工具前缀为 **`mcp_acs_*`**（如 `mcp_acs_create_cron_task`）。Agent 可直接调用，**无需 curl、无需 HTTP 请求**：
 
 ### MCP Tools 一览
 
@@ -469,7 +469,7 @@ hermes skills install your-org/agent-cron-skills
 
 ```yaml
 mcpServers:
-  acs:
+  mcp_acs:
     transport: streamable-http
     url: http://localhost:8900/mcp/
 ```
@@ -506,7 +506,7 @@ openclaw skills publish skill/
 
 ```yaml
 mcpServers:
-  acs:
+  mcp_acs:
     transport: streamable-http
     url: http://localhost:8900/mcp/
 ```
