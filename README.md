@@ -22,15 +22,11 @@
 
 ## 快速开始
 
-```bash
-# hermes-agent
-hermes install github:DeanWanghewei/agent-cron-server
+对 hermes-agent 或 openclaw 说：
 
-# openclaw
-openclaw install github:DeanWanghewei/agent-cron-server
-```
+> 帮我安装这个项目 https://github.com/DeanWanghewei/agent-cron-server
 
-安装后 Agent 会自动注册 MCP Server，即可使用 `mcp_acs_*` 系列工具管理定时任务。
+Agent 会自动克隆、安装、启动服务并注册 MCP Server，之后即可通过 `mcp_acs_*` 系列工具管理定时任务。
 
 > 遇到问题？查看下方「手动安装与配置」章节。
 
