@@ -22,57 +22,38 @@
 
 ## 快速开始
 
+```bash
+# hermes-agent
+hermes install github:DeanWanghewei/agent-cron-server
+
+# openclaw
+openclaw install github:DeanWanghewei/agent-cron-server
+```
+
+安装后 Agent 会自动注册 MCP Server，即可使用 `mcp_acs_*` 系列工具管理定时任务。
+
+> 遇到问题？查看下方「手动安装与配置」章节。
+
+---
+
+## 手动安装与配置
+
+> 以下内容供排查问题或手动部署时参考。正常使用只需上方「快速开始」即可。
+
 ### 安装
 
 ```bash
-# 克隆项目
 git clone https://github.com/DeanWanghewei/agent-cron-server.git
 cd agent-cron-server
-
-# 创建虚拟环境（推荐）
 python -m venv .venv
 source .venv/bin/activate
-
-# 安装依赖
 pip install -e .
-
-# 开发依赖（可选）
-pip install -e ".[dev]"
 ```
-
-### 在 Hermes / OpenClaw 中使用
-
-如果你使用 **hermes-agent** 或 **openclaw**，直接在配置中添加 MCP Server 即可，无需额外安装 Skill：
-
-**Hermes** — 编辑 `~/.hermes/config.yaml` 或项目 `.agents/config.yaml`：
-
-```yaml
-mcpServers:
-  mcp_acs:
-    transport: streamable-http
-    url: http://localhost:8900/mcp/
-```
-
-**OpenClaw** — 编辑 OpenClaw 配置文件：
-
-```yaml
-mcpServers:
-  mcp_acs:
-    transport: streamable-http
-    url: http://localhost:8900/mcp/
-```
-
-配置完成后，Agent 会自动发现 `mcp_acs_*` 系列工具（如 `mcp_acs_create_cron_task`），即可直接创建和管理定时任务。
-
-> 前提：需要先启动 agent-cron-server 服务（见下方「启动」章节）。
 
 ### 配置
 
 ```bash
-# 复制配置文件
 cp .env.example .env
-
-# 按需编辑
 vim .env
 ```
 
@@ -96,13 +77,10 @@ vim .env
 ### 启动
 
 ```bash
-# 方式一：启动脚本
-bash scripts/start.sh
-
-# 方式二：直接运行
+# 直接运行
 uvicorn app.main:app --host 0.0.0.0 --port 8900
 
-# 方式三：开发模式（自动重载）
+# 开发模式（自动重载）
 uvicorn app.main:app --host 0.0.0.0 --port 8900 --reload
 ```
 
@@ -111,6 +89,17 @@ uvicorn app.main:app --host 0.0.0.0 --port 8900 --reload
 - REST API: http://localhost:8900/api/v1/
 - MCP Server: http://localhost:8900/mcp/
 - 健康检查: http://localhost:8900/health
+
+### MCP 手动注册
+
+如果自动安装未生效，可手动在配置中添加：
+
+```yaml
+mcpServers:
+  mcp_acs:
+    transport: streamable-http
+    url: http://localhost:8900/mcp/
+```
 
 ---
 
@@ -457,85 +446,29 @@ curl localhost:8900/api/v1/executions/1/log
 
 ---
 
-## Skill 安装
+## Skill 安装（进阶）
 
-agent-cron-server 附带一个兼容 Hermes 和 OpenClaw 的 Skill，让 Agent 能直接管理定时任务。
+> 正常使用推荐「快速开始」中的 `hermes install` / `openclaw install`。以下仅列出本地安装方式供开发参考。
 
-### Hermes Agent
+### 本地安装 Skill 文件
 
-**方式一：本地安装（开发）**
+将 `skill/` 目录复制到 Agent 的 skills 目录：
 
-将 `skill/` 目录的内容复制到 Hermes 的 skills 目录：
+**Hermes：**
 
 ```bash
-# 确保 acs 目录不存在，避免 cp 产生嵌套
 rm -rf ~/.hermes/skills/acs
 cp -r skill/ ~/.hermes/skills/acs/
-
-# 或项目级 skills 目录
-rm -rf your-project/.agents/skills/acs
-cp -r skill/ your-project/.agents/skills/acs/
 ```
 
-> ⚠️ 如果目标目录已存在，`cp -r skill/ target/` 会把整个 `skill/` 作为子目录拷进去（变成 `target/skill/SKILL.md`），导致无法识别。务必先删除目标目录或使用 `cp -r skill/* target/`。
-
-**方式二：Skills Hub 发布**
+**OpenClaw：**
 
 ```bash
-# 发布到 GitHub 仓库
-hermes skills publish skill/ --to github --repo your-org/agent-cron-skills
-
-# 用户安装
-hermes skills install your-org/agent-cron-skills
-```
-
-**方式三：配置 MCP 直连（推荐，无需 Skill 文件）**
-
-在 `~/.hermes/config.yaml` 或项目 `.agents/config.yaml` 中添加：
-
-```yaml
-mcpServers:
-  mcp_acs:
-    transport: streamable-http
-    url: http://localhost:8900/mcp/
-```
-
-### OpenClaw
-
-**方式一：本地安装**
-
-将 `skill/` 目录的内容放到 OpenClaw 的 skills 目录：
-
-```bash
-# 用户级（确保目标目录不存在，避免嵌套）
 rm -rf ~/.openclaw/skills/agent-cron
 cp -r skill/ ~/.openclaw/skills/agent-cron/
-
-# 项目级
-rm -rf your-project/.agents/skills/agent-cron
-cp -r skill/ your-project/.agents/skills/agent-cron/
-
-# 工作区级
-rm -rf your-project/skills/agent-cron
-cp -r skill/ your-project/skills/agent-cron/
 ```
 
-**方式二：ClawHub 发布**
-
-```bash
-openclaw skills publish skill/
-```
-
-**方式三：配置 MCP 直连**
-
-在 OpenClaw 配置中添加 MCP Server：
-
-```yaml
-mcpServers:
-  mcp_acs:
-    transport: streamable-http
-    url: http://localhost:8900/mcp/
-```
+> ⚠️ 如果目标目录已存在，`cp -r skill/ target/` 会把整个 `skill/` 作为子目录拷进去（变成 `target/skill/SKILL.md`），导致无法识别。务必先删除目标目录。
 
 ### Skill 加载优先级
 
