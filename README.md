@@ -26,7 +26,7 @@
 
 ```bash
 # 克隆项目
-git clone <repo-url> agent-cron-server
+git clone https://github.com/DeanWanghewei/agent-cron-server.git
 cd agent-cron-server
 
 # 创建虚拟环境（推荐）
@@ -39,6 +39,32 @@ pip install -e .
 # 开发依赖（可选）
 pip install -e ".[dev]"
 ```
+
+### 在 Hermes / OpenClaw 中使用
+
+如果你使用 **hermes-agent** 或 **openclaw**，直接在配置中添加 MCP Server 即可，无需额外安装 Skill：
+
+**Hermes** — 编辑 `~/.hermes/config.yaml` 或项目 `.agents/config.yaml`：
+
+```yaml
+mcpServers:
+  mcp_acs:
+    transport: streamable-http
+    url: http://localhost:8900/mcp/
+```
+
+**OpenClaw** — 编辑 OpenClaw 配置文件：
+
+```yaml
+mcpServers:
+  mcp_acs:
+    transport: streamable-http
+    url: http://localhost:8900/mcp/
+```
+
+配置完成后，Agent 会自动发现 `mcp_acs_*` 系列工具（如 `mcp_acs_create_cron_task`），即可直接创建和管理定时任务。
+
+> 前提：需要先启动 agent-cron-server 服务（见下方「启动」章节）。
 
 ### 配置
 
