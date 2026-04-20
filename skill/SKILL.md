@@ -26,7 +26,7 @@ metadata:
 
 > **本服务已配置为 MCP Server（streamable-http），所有操作必须通过 MCP tools 完成。**
 >
-> ✅ **正确**：通过 MCP tools（Hermes 内部 MCP client 或 mcporter CLI）
+> ✅ **正确**：通过 MCP tools（`mcp_acs_*` 前缀，Agent 内部直接调用）
 >
 > ❌ **错误**：`curl http://localhost:8900/api/v1/...`、`urllib.request`、任何 HTTP API 调用
 >
@@ -41,7 +41,7 @@ metadata:
 
 ## Prerequisites
 
-agent-cron-server 必须运行中。使用前先通过 MCP tool `get_service_health` 检查服务状态。
+agent-cron-server 必须运行中。使用前先通过 MCP tool `mcp_acs_get_service_health` 检查服务状态。
 
 如果服务未运行，优先通过 systemd 启动：
 
@@ -58,30 +58,39 @@ cd /path/to/agent-cron-server
 sleep 2
 ```
 
-## How to Call MCP Tools
+## MCP Server 配置
 
-## MCP Server 配置名称
-
-> **MCP 在 Hermes/OpenClaw config.yaml 中注册的 server 名称为 `agent-cron`。**
+> **MCP 在 Hermes/OpenClaw config.yaml 中注册的 server 名称为 `acs`。**
 >
-> - Hermes 内部 MCP client 注册的工具前缀为 **`mcp_agent_cron_*`**（如 `mcp_agent_cron_list_cron_tasks`）
-> - OpenClaw 同理，注册为配置中的 server 名称对应前缀
+> 注册后工具前缀为 **`mcp_acs_*`**（如 `mcp_acs_create_cron_task`）。
 >
 > 配置方式：
 > ```yaml
 > mcpServers:
->   agent-cron:
+>   acs:
 >     transport: streamable-http
 >     url: http://localhost:8900/mcp/
 > ```
 
-### 方式一：Hermes/OpenClaw 内部 MCP Client（Agent 首选）
+### ⚠️ 首次加载时：校验工具名称
 
-Agent 运行时已自动连接 MCP Server，可直接调用 tools。
-- Hermes：tools 自动注册为 **`mcp_agent_cron_*`** 前缀（如 `mcp_agent_cron_get_service_health`），直接在对话中调用
-- OpenClaw：类似，通过 MCP client 自动发现，前缀取决于配置中的 server 名称
+加载本 skill 后，**必须先确认实际注册的 MCP 工具名称是否与本文档一致**：
 
-### 方式二：mcporter CLI（调试/手动测试）
+1. 列出当前可用的 MCP 工具，找到以 `create_cron_task` 结尾的工具
+2. 确认其完整前缀（可能是 `mcp_acs_`、`mcp_agent_cron_` 或其他）
+3. 如果前缀**不是** `mcp_acs_`，则将本文档中所有 `mcp_acs_` 替换为实际前缀
+
+**为什么要做这步？** 不同 agent 框架或不同配置中的 server 名称可能不同，导致工具前缀不一致。直接使用本文档中的名称调用会失败。以实际注册的工具名称为准。
+
+### Hermes/OpenClaw 内部调用
+
+Agent 运行时已自动连接 MCP Server，直接使用 `mcp_acs_*` 前缀调用即可：
+- `mcp_acs_get_service_health` — 健康检查
+- `mcp_acs_create_cron_task` — 创建任务
+- `mcp_acs_list_cron_tasks` — 列出任务
+- 等等（完整列表见下方 Tools Reference）
+
+### mcporter CLI（调试/手动测试）
 
 当 Agent 需要通过 terminal 调用 MCP tools（如子任务、调试时），使用 mcporter：
 
@@ -95,7 +104,7 @@ $MCPORTER get_service_health
 $MCPORTER list_cron_tasks
 
 # 创建任务（key=value 语法）
-$MCPORTER create_cron_task name="daily-report" command="python3 /path/to/report.py" cron_expression="0 9 * * *"
+$MCPORTER create_cron_task name="daily-report" command="python3 /path/to/report.py" cron_expression="0 9 * * *" owner_agent="hermes"
 
 # 手动触发
 $MCPORTER trigger_cron_task task_id=1
@@ -112,22 +121,24 @@ $MCPORTER list_cron_tasks --output json
 
 ## MCP Tools Reference
 
-| Tool | 说明 | 关键参数 |
-|------|------|----------|
-| `get_service_health` | 服务健康检查 | 无 |
-| `create_cron_task` | 创建定时任务 | name, command, cron_expression (必填) |
-| `list_cron_tasks` | 列出任务 | enabled, owner_agent, tag (可选筛选) |
-| `get_cron_task` | 查看任务详情 | task_id |
-| `update_cron_task` | 更新任务配置 | task_id + 要更新的字段 |
-| `delete_cron_task` | 删除任务及历史 | task_id |
-| `trigger_cron_task` | 手动立即触发 | task_id |
-| `enable_cron_task` | 启用任务 | task_id |
-| `disable_cron_task` | 禁用任务（保留配置） | task_id |
-| `list_executions` | 查看执行记录 | task_id, status, limit (可选) |
-| `get_execution` | 查看执行详情 | execution_id |
-| `get_execution_log` | 查看 stdout/stderr | execution_id |
+> **Agent 内部调用时需加 `mcp_acs_` 前缀**，如 `mcp_acs_create_cron_task`。mcporter CLI 直接用原始名称。
 
-### create_cron_task 完整参数
+| Tool（Agent 内部名称） | 说明 | 关键参数 |
+|------|------|----------|
+| `mcp_acs_get_service_health` | 服务健康检查 | 无 |
+| `mcp_acs_create_cron_task` | 创建定时任务 | name, command, cron_expression, owner_agent (必填) |
+| `mcp_acs_list_cron_tasks` | 列出任务 | enabled, owner_agent, tag (可选筛选) |
+| `mcp_acs_get_cron_task` | 查看任务详情 | task_id |
+| `mcp_acs_update_cron_task` | 更新任务配置 | task_id + 要更新的字段 |
+| `mcp_acs_delete_cron_task` | 删除任务及历史 | task_id |
+| `mcp_acs_trigger_cron_task` | 手动立即触发 | task_id |
+| `mcp_acs_enable_cron_task` | 启用任务 | task_id |
+| `mcp_acs_disable_cron_task` | 禁用任务（保留配置） | task_id |
+| `mcp_acs_list_executions` | 查看执行记录 | task_id, status, limit (可选) |
+| `mcp_acs_get_execution` | 查看执行详情 | execution_id |
+| `mcp_acs_get_execution_log` | 查看 stdout/stderr | execution_id |
+
+### mcp_acs_create_cron_task 完整参数
 
 **必填**: `name`, `command`, `cron_expression`, `owner_agent`
 
@@ -148,14 +159,14 @@ $MCPORTER list_cron_tasks --output json
 ### 1. Check Service
 
 ```
-→ get_service_health()
+→ mcp_acs_get_service_health()
 ← "Service: OK\nScheduler: running\nActive jobs: 3"
 ```
 
 ### 2. Create a Scheduled Task
 
 ```
-→ create_cron_task(
+→ mcp_acs_create_cron_task(
     name="daily-report",
     command="python3 /path/to/report.py",
     cron_expression="0 9 * * *",
@@ -170,24 +181,24 @@ $MCPORTER list_cron_tasks --output json
 ### 3. Monitor Execution
 
 ```
-→ list_executions(task_id=1, limit=5)
+→ mcp_acs_list_executions(task_id=1, limit=5)
 ← "Total: 3 records\n- [1] daily-report | success | manual | duration: 31ms ..."
 
-→ get_execution(execution_id=1)
+→ mcp_acs_get_execution(execution_id=1)
 ← "Execution #1\n  Task: daily-report (id=1)\n  Status: success\n  Duration: 31ms\n  ..."
 
-→ get_execution_log(execution_id=1)
+→ mcp_acs_get_execution_log(execution_id=1)
 ← "=== STDOUT ===\nReport generated successfully\n\n=== STDERR ===\n"
 ```
 
 ### 4. Manage Tasks
 
 ```
-→ trigger_cron_task(task_id=1)        # 手动触发
-→ disable_cron_task(task_id=1)        # 暂停调度（保留配置）
-→ enable_cron_task(task_id=1)         # 恢复调度
-→ update_cron_task(task_id=1, timeout=600)  # 修改配置
-→ delete_cron_task(task_id=1)         # 删除任务及历史
+→ mcp_acs_trigger_cron_task(task_id=1)        # 手动触发
+→ mcp_acs_disable_cron_task(task_id=1)        # 暂停调度（保留配置）
+→ mcp_acs_enable_cron_task(task_id=1)         # 恢复调度
+→ mcp_acs_update_cron_task(task_id=1, timeout=600)  # 修改配置
+→ mcp_acs_delete_cron_task(task_id=1)         # 删除任务及历史
 ```
 
 ## 日志记录机制
@@ -254,7 +265,7 @@ fi
 ### 日志查看
 
 ```
-→ get_execution_log(execution_id=1)
+→ mcp_acs_get_execution_log(execution_id=1)
 ← "=== STDOUT ===\nReport generated: 42 items\n\n=== STDERR ===\n"
 ```
 
@@ -283,10 +294,11 @@ fi
 
 ## Pitfalls
 
-- **⛔ 禁止 curl/API**：不要使用 `curl http://localhost:8900/api/v1/...`，不要用 Python `urllib`/`requests` 调 REST API。必须通过 MCP tools 交互（内部 MCP client 或 mcporter CLI）。
-- **update_cron_task 只传需要更新的字段**：FastMCP 会把所有参数（包括 None）传给工具函数，导致 Pydantic `model_dump(exclude_unset=True)` 失效、NOT NULL 冲突。已修复：只传非 None 字段给 `TaskUpdate`。但如果将来 schema 变动，注意此陷阱。
+- **⛔ 禁止 curl/API**：不要使用 `curl http://localhost:8900/api/v1/...`，不要用 Python `urllib`/`requests` 调 REST API。必须通过 MCP tools 交互。
+- **工具名称前缀**：Agent 内部调用时必须使用 `mcp_acs_` 前缀（如 `mcp_acs_create_cron_task`），mcporter CLI 使用原始名称。
+- **mcp_acs_update_cron_task 只传需要更新的字段**：FastMCP 会把所有参数（包括 None）传给工具函数，导致 Pydantic `model_dump(exclude_unset=True)` 失效、NOT NULL 冲突。已修复：只传非 None 字段给 `TaskUpdate`。但如果将来 schema 变动，注意此陷阱。
 - **Callback 401 错误**：回调目标如果是 Hermes webhook，必须配置 `ACS_CALLBACK_SECRET` 并匹配 webhook 订阅的 secret，否则返回 401 Unauthorized。
-- **Server not running**: MCP tool 调用会报错。先 `get_service_health()` 检查，未运行则用 terminal 启动。
+- **Server not running**: MCP tool 调用会报错。先 `mcp_acs_get_service_health()` 检查，未运行则用 terminal 启动。
 - **Cron expression**: 必须使用标准 5 字段格式，非法表达式会返回错误。
 - **Command paths**: 使用绝对路径，避免子进程环境中 PATH 问题。
 - **Timeout**: 长时间运行的脚本需设更大 `timeout`，超时状态为 "timeout"。
@@ -306,10 +318,11 @@ fi
 ### 创建带回调的任务
 
 ```
-→ create_cron_task(
+→ mcp_acs_create_cron_task(
     name="daily-report",
     command="python3 /path/to/report.py",
     cron_expression="0 9 * * *",
+    owner_agent="hermes",
     callback_url="https://your-gateway.example.com/hooks/cron-done"
   )
 ```
@@ -399,24 +412,23 @@ ACS_CALLBACK_SECRET=<hermes-webhook-secret>
 
 #### 3. 给任务设置 callback_url
 
-```bash
-$MCPORTER update_cron_task task_id=4 callback_url="http://localhost:8644/webhooks/acs-callback"
+```
+→ mcp_acs_update_cron_task(task_id=4, callback_url="http://localhost:8644/webhooks/acs-callback")
 ```
 
 #### 4. 触发测试
 
-```bash
-$MCPORTER trigger_cron_task task_id=4
+```
+→ mcp_acs_trigger_cron_task(task_id=4)
 # 检查日志确认回调成功
-journalctl -u agent-cron-server --since "1 min ago" | grep -i callback
 # 期望: "Callback sent to ... HTTP 202"
 ```
 
 ### 注意事项
 
 - 回调超时 10 秒，失败只记录 warning 日志，不影响任务执行
-- stdout/stderr 摘要最多 4096 字符，完整日志通过 `get_execution_log` MCP tool 获取
-- `callback_url` 可通过 `update_cron_task` 随时修改或清除
+- stdout/stderr 摘要最多 4096 字符，完整日志通过 `mcp_acs_get_execution_log` 获取
+- `callback_url` 可通过 `mcp_acs_update_cron_task` 随时修改或清除
 - **HMAC 签名必须配置**，否则 Hermes gateway 返回 401 Unauthorized
 - Hermes webhook secret 在 `hermes webhook subscribe` 时生成，查看用 `hermes webhook list`
 - **更新 webhook prompt 时**：先 `hermes webhook remove acs-callback` 再重新 subscribe，不要尝试原地修改
@@ -426,8 +438,8 @@ journalctl -u agent-cron-server --since "1 min ago" | grep -i callback
 创建任务后验证是否正常工作：
 
 ```
-→ get_service_health()                        # 1. 检查服务
-→ trigger_cron_task(task_id=1)                # 2. 手动触发测试
-→ list_executions(task_id=1, limit=1)         # 3. 查看执行结果
-→ get_execution_log(execution_id=...)         # 4. 查看输出日志
+→ mcp_acs_get_service_health()                        # 1. 检查服务
+→ mcp_acs_trigger_cron_task(task_id=1)                # 2. 手动触发测试
+→ mcp_acs_list_executions(task_id=1, limit=1)         # 3. 查看执行结果
+→ mcp_acs_get_execution_log(execution_id=...)         # 4. 查看输出日志
 ```
